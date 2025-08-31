@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Email = {
   id: string;
@@ -103,6 +103,23 @@ export default function Home() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [selectedLabel, setSelectedLabel] = useState("inbox");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check screen size on mount and resize
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   const toggleStar = (id: string) => {
     setEmails(emails.map(email => 
@@ -134,8 +151,29 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-[#0B121F]">
+      {/* Mobile sidebar overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-[#151E2D] border-r border-gray-800 flex flex-col">
+      <div className={`w-64 bg-[#151E2D] border-r border-gray-800 flex flex-col fixed md:relative z-30 h-full transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        {/* Sidebar header for mobile */}
+        <div className="p-4 border-b border-gray-800 flex items-center md:hidden">
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="text-gray-400 hover:text-white mr-4"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <h2 className="text-white font-semibold">Mail</h2>
+        </div>
+
         {/* Compose button */}
         <div className="p-4">
           <button className="bg-[rgb(11,38,90)] hover:bg-blue-700 text-white rounded-full px-4 py-3 flex items-center justify-center shadow-md w-full">
@@ -155,7 +193,10 @@ export default function Home() {
                 className={`flex items-center px-4 py-2 rounded-r-full cursor-pointer transition-colors ${
                   selectedLabel === label.id ? "bg-blue-900/30 font-medium text-white" : "text-gray-300 hover:bg-gray-800"
                 }`}
-                onClick={() => setSelectedLabel(label.id)}
+                onClick={() => {
+                  setSelectedLabel(label.id);
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
               >
                 <div className={`w-3 h-3 rounded-full ${label.color} mr-3`}></div>
                 <span className="flex-1">{label.name}</span>
@@ -188,9 +229,20 @@ export default function Home() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
-        {/* Search bar */}
+      <div className="flex-1 flex flex-col md:ml-0">
+        {/* Top bar with menu button for mobile */}
         <div className="bg-[#151E2D] p-4 border-b border-gray-800 flex items-center">
+          {/* Mobile menu button */}
+          <button 
+            className="md:hidden mr-3 text-gray-400 hover:text-white"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* Search bar */}
           <div className="relative flex-1 max-w-2xl">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg className="h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
@@ -216,8 +268,8 @@ export default function Home() {
 
         {/* Email list and content */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Email list */}
-          <div className="w-1/2 bg-[#151E2D] border-r border-gray-800 overflow-y-auto">
+          {/* Email list - hidden on mobile when email is selected */}
+          <div className={`${selectedEmail && isMobile ? 'hidden' : 'flex'} w-full md:w-1/2 lg:w-2/5 xl:w-2/5 bg-[#151E2D] border-r border-gray-800 overflow-y-auto flex-col`}>
             {/* Action buttons */}
             <div className="flex items-center p-2 border-b border-gray-800">
               <button className="p-2 text-gray-400 hover:bg-gray-800 rounded">
@@ -241,7 +293,7 @@ export default function Home() {
                 </svg>
               </button>
               <div className="flex-1"></div>
-              <span className="text-xs text-gray-400">1-{filteredEmails.length} of {filteredEmails.length}</span>
+              <span className="text-xs text-gray-400 hidden sm:block">1-{filteredEmails.length} of {filteredEmails.length}</span>
               <button className="p-2 text-gray-400 hover:bg-gray-800 rounded ml-1">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -255,7 +307,7 @@ export default function Home() {
             </div>
 
             {/* Email items */}
-            <div className="divide-y divide-gray-800">
+            <div className="divide-y divide-gray-800 flex-1 overflow-y-auto">
               {filteredEmails.map(email => (
                 <div
                   key={email.id}
@@ -264,9 +316,15 @@ export default function Home() {
                   } ${
                     selectedEmail?.id === email.id ? 'bg-gray-800' : ''
                   }`}
-                  onClick={() => setSelectedEmail(email)}
+                  onClick={() => {
+                    setSelectedEmail(email);
+                    if (isMobile) {
+                      // On mobile, toggle read status when selecting
+                      toggleRead(email.id);
+                    }
+                  }}
                 >
-                  <div className="flex items-center mr-4">
+                  <div className="flex items-center mr-2 sm:mr-4">
                     <input
                       type="checkbox"
                       className="rounded text-blue-600 focus:ring-blue-500 bg-gray-700 border-gray-600"
@@ -274,7 +332,7 @@ export default function Home() {
                     />
                   </div>
                   <button
-                    className="mr-3 text-gray-500 hover:text-yellow-400 focus:outline-none"
+                    className="mr-2 sm:mr-3 text-gray-500 hover:text-yellow-400 focus:outline-none"
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleStar(email.id);
@@ -294,32 +352,44 @@ export default function Home() {
                       <h3 className={`text-sm font-medium truncate ${!email.read ? 'text-white font-bold' : 'text-gray-300'}`}>
                         {email.from}
                       </h3>
-                      <span className="text-xs text-gray-400 whitespace-nowrap">{email.date}</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap ml-2">{email.date}</span>
                     </div>
                     <p className={`text-sm truncate ${!email.read ? 'text-white font-medium' : 'text-gray-400'}`}>
                       {email.subject}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{email.body}</p>
+                    <p className="text-xs text-gray-500 truncate hidden sm:block">{email.body}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Email content */}
-          <div className="w-1/2 bg-[#151E2D] p-4 overflow-y-auto">
+          {/* Email content - hidden on mobile when no email is selected */}
+          <div className={`${!selectedEmail && isMobile ? 'hidden' : 'flex'} w-full md:w-1/2 lg:w-3/5 xl:w-3/5 bg-[#151E2D] overflow-y-auto flex-col`}>
             {selectedEmail ? (
-              <div>
+              <div className="p-4">
+                {/* Back button for mobile */}
+                {isMobile && (
+                  <button 
+                    onClick={() => setSelectedEmail(null)}
+                    className="mb-4 flex items-center text-blue-400 hover:text-blue-300"
+                  >
+                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to inbox
+                  </button>
+                )}
+                
                 <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{selectedEmail.subject}</h2>
-                    <div className="flex items-center mt-2">
-                      <span className="text-sm font-medium text-white">{selectedEmail.from}</span>
-                      <span className="mx-1 text-gray-400">•</span>
-                      <span className="text-sm text-gray-400">{selectedEmail.fromEmail}</span>
+                  <div className="flex-1">
+                    <h2 className="text-xl font-bold text-white break-words">{selectedEmail.subject}</h2>
+                    <div className="flex items-center mt-2 flex-wrap">
+                      <span className="text-sm font-medium text-white mr-2">{selectedEmail.from}</span>
+                      <span className="text-sm text-gray-400 break-all">{selectedEmail.fromEmail}</span>
                     </div>
                   </div>
-                  <span className="text-sm text-gray-400">{selectedEmail.date}</span>
+                  <span className="text-sm text-gray-400 ml-2 whitespace-nowrap">{selectedEmail.date}</span>
                 </div>
 
                 <div className="prose max-w-none mb-6 text-gray-300">
@@ -339,7 +409,7 @@ export default function Home() {
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center">
+                <div className="text-center p-4">
                   <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
